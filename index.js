@@ -8,8 +8,7 @@ const containsOnlyLettersAndSpaces = (str) => {
 };
 
 /**
- * Validates the provided name, ensuring it meets specific criteria.
- * It also updates the error message shown to the user.
+ * Validates the name input. It checks if the name is not empty, contains only letters and spaces, and is not longer than 255 characters. Updates the error message accordingly.
  * @param {string} name - The name to be validated.
  * @returns {boolean} - True if the name is valid, false otherwise.
  */
@@ -17,12 +16,10 @@ const validateName = (name) => {
   if (!name) {
     error.innerText = "Name is Empty!";
     return false;
-  }
-  if (!containsOnlyLettersAndSpaces(name)) {
+  } else if (!containsOnlyLettersAndSpaces(name)) {
     error.innerText = "Name should only contain letters and spaces!";
     return false;
-  }
-  if (name.length > 255) {
+  } else if (name.length > 255) {
     error.innerText = "Name should be at most 255 characters!";
     return false;
   }
@@ -30,8 +27,8 @@ const validateName = (name) => {
 };
 
 /**
- * Validates the gender selection in the form.
- * @returns {boolean} - False if neither of the gender options is selected, true otherwise.
+ * Validates the gender selection. Checks if either the male or female option is checked.
+ * @returns {boolean} - True if a gender is selected, false otherwise.
  */
 const validateGender = () => {
   if (!isMale.checked && !isFemale.checked) {
@@ -42,7 +39,7 @@ const validateGender = () => {
 };
 
 /**
- * Displays the gender prediction or an error message if no prediction is available.
+ * Displays the gender prediction or an appropriate error message if the prediction is not available.
  * @param {Object} prediction - The prediction object containing gender and probability.
  * @param {string} name - The name for which the prediction is made.
  */
@@ -57,32 +54,48 @@ const showPrediction = ({ gender, probability }, name) => {
 };
 
 /**
- * Fetches the gender prediction for a given name from an external API.
+ * Fetches the gender prediction for the given name using an external API.
  * @param {string} name - The name for which the prediction is required.
  */
 const fetchPrediction = async (name) => {
   const url = new URL("https://api.genderize.io/");
   url.search = new URLSearchParams({ name }).toString();
-  
+
   try {
     const response = await fetch(url, { method: "GET" });
     if (response.ok) {
       const body = await response.json();
       showPrediction(body, name);
     } else {
-      error.innerText = response.status === 404
-        ? "No prediction is available for this name!"
-        : "Something went wrong! Please try again later.";
+      handleResponseError(response.status);
     }
-  } catch (error) {
+  } catch (e) {
     error.innerText = "An error occurred! Please try again later.";
   }
 };
 
 /**
- * Updates the displayed saved answer with the given values.
- * @param {string} name - The name to display.
- * @param {string} gender - The gender to display.
+ * Handles different response errors based on the status code.
+ * @param {number} statusCode - The HTTP status code returned by the fetch request.
+ */
+const handleResponseError = (statusCode) => {
+  switch (statusCode) {
+    case 404:
+      error.innerText = "No prediction is available for this name!";
+      break;
+    case 429:
+      error.innerText = "Too many requests! Please try again later.";
+      break;
+    case 500:
+    default:
+      error.innerText = "An error occurred! Please try again later.";
+  }
+};
+
+/**
+ * Updates the text element to display the saved answer.
+ * @param {string} name - The name that was saved.
+ * @param {string} gender - The gender that was saved.
  */
 const updateSavedAnswer = (name, gender) => {
   savedAnswerText.innerText = `${name} is ${gender}`;
@@ -91,26 +104,21 @@ const updateSavedAnswer = (name, gender) => {
 };
 
 /**
- * Retrieves and displays the saved gender value for a given name.
- * @param {string} name - The name for which the saved value is required.
+ * Retrieves and displays saved gender values for the given name.
+ * @param {string} name - The name for which to retrieve saved values.
  */
 const getSavedValues = (name) => {
   const gender = localStorage.getItem(name);
-  if (gender) {
-    updateSavedAnswer(name, gender);
-  } else {
-    savedAnswerText.innerText = `No gender is saved for ${name}`;
-  }
+  gender ? updateSavedAnswer(name, gender) : savedAnswerText.innerText = `No gender is saved for ${name}`;
 };
 
 /**
- * Handles the form submission event.
- * Prevents default form submission, validates input, and fetches prediction.
+ * Handles the form submission. Validates the name, fetches prediction, and displays saved values.
  * @param {Event} event - The form submission event.
  */
 const handleFormSubmit = (event) => {
   event.preventDefault();
-  const name = nameInput.value;
+  const name = nameInput.value.trim();
   if (validateName(name)) {
     error.innerText = "";
     getSavedValues(name);
@@ -119,11 +127,10 @@ const handleFormSubmit = (event) => {
 };
 
 /**
- * Handles the save button click event.
- * Validates input and saves the gender selection to localStorage.
+ * Handles saving the gender selection for the given name to localStorage.
  */
 const handleSave = () => {
-  const name = nameInput.value;
+  const name = nameInput.value.trim();
   if (validateName(name) && validateGender()) {
     error.innerText = "";
     const gender = isMale.checked ? "male" : "female";
@@ -133,15 +140,15 @@ const handleSave = () => {
 };
 
 /**
- * Handles the clear button click event.
- * Removes the saved gender value for the current name from localStorage.
+ * Clears the saved gender value for the currently displayed name.
  */
 const handleClear = () => {
-  localStorage.removeItem(currentSavedAnswer.name);
-  savedAnswerText.innerText = `Cleared saved gender for ${currentSavedAnswer.name}`;
+  const name = currentSavedAnswer.name;
+  localStorage.removeItem(name);
+  savedAnswerText.innerText = `Cleared saved gender for ${name}`;
 };
 
-// DOM Elements
+// DOM elements
 const nameInput = document.getElementById("name");
 const error = document.getElementById("error");
 const form = document.getElementById("form");
@@ -150,8 +157,8 @@ const isFemale = document.getElementById("female");
 const predictionText = document.getElementById("prediction");
 const savedAnswerText = document.getElementById("saved-answer");
 
-// Stores the current saved answer
+// Object to store the current saved answer
 const currentSavedAnswer = { name: "", gender: "" };
 
-// Event Listeners
+// Event listeners
 form.onsubmit = handleFormSubmit;
